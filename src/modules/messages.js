@@ -27,7 +27,7 @@ async function saveTemplates(templates) {
   await fs.promises.writeFile(DATA_PATH, JSON.stringify({ templates }, null, 2), 'utf8');
 }
 
-async function addTemplate(name, content, mediaPath, mediaType, caption) {
+async function addTemplate(name, content, mediaPath, mediaType, caption, asVoice = false) {
   if (!name || !name.trim()) throw new Error('O nome do template não pode ser vazio.');
 
   const hasMedia = mediaPath && mediaPath.trim() !== '';
@@ -53,7 +53,9 @@ async function addTemplate(name, content, mediaPath, mediaType, caption) {
     template.media = {
       type: mediaType || 'image',
       path: mediaPath.trim(),
-      caption: caption ? caption.trim() : '',
+      ...(mediaType === 'audio'
+        ? { asVoice: Boolean(asVoice) }
+        : { caption: caption ? caption.trim() : '' }),
     };
   }
 

@@ -67,6 +67,9 @@ async function sendBulkMessages(templateId, options = {}) {
     return [];
   }
 
+  const { min: delayMin, max: delayMax } = getDelayRange(contacts.length);
+  logger.info(`Delay automático: ${delayMin / 1000}–${delayMax / 1000}s por envio (${contacts.length} contatos)`);
+
   const client = getClient();
   const results = [];
 
@@ -77,14 +80,30 @@ async function sendBulkMessages(templateId, options = {}) {
     try {
       const chatId = toChatId(contact.phone);
 
+      const footer = '\n\n🤖 _Mensagem enviada pelo Bot EnviaZap_';
       let msg;
       if (template.media && template.media.path) {
         const mediaAbsPath = path.resolve(process.cwd(), template.media.path);
         const media = MessageMedia.fromFilePath(mediaAbsPath);
-        const caption = interpolate(template.media.caption || template.content, contact);
-        msg = await client.sendMessage(chatId, media, { caption });
+
+        if (template.media.type === 'audio') {
+          // Áudio não suporta caption: envia texto e áudio separadamente
+          if (template.content) {
+            const text = interpolate(template.content, contact) + footer;
+            await client.sendMessage(chatId, text);
+          }
+          msg = await client.sendMessage(chatId, media, {
+            sendAudioAsVoice: template.media.asVoice || false,
+          });
+          if (!template.content) {
+            await client.sendMessage(chatId, footer.trim());
+          }
+        } else {
+          const caption = interpolate(template.media.caption || template.content, contact) + footer;
+          msg = await client.sendMessage(chatId, media, { caption });
+        }
       } else {
-        const text = interpolate(template.content, contact);
+        const text = interpolate(template.content, contact) + footer;
         msg = await client.sendMessage(chatId, text);
       }
 

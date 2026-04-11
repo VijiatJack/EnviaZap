@@ -5,7 +5,8 @@ const { sendBulkMessages } = require('../modules/bulk-sender');
 const { loadTemplates } = require('../modules/messages');
 const { getActiveContacts } = require('../modules/contacts');
 const { showContactsMenu } = require('./contacts-menu');
-const { showMessagesMenu } = require('./messages-menu');
+const { showMessagesMenu, addTemplateFlow } = require('./messages-menu');
+const { showMediaMenu } = require('./media-menu');
 const { destroyClient } = require('../client/whatsapp');
 const logger = require('../utils/logger');
 
@@ -20,6 +21,7 @@ async function showMainMenu() {
         { name: '📨  Enviar mensagem em massa', value: 'send' },
         { name: '👥  Gerenciar contatos', value: 'contacts' },
         { name: '📝  Gerenciar mensagens', value: 'messages' },
+        { name: '🖼️   Gerenciar mídias', value: 'media' },
         { name: '🚪  Sair', value: 'exit' },
       ],
     },
@@ -28,6 +30,7 @@ async function showMainMenu() {
   if (action === 'send') await showBulkSendWizard();
   else if (action === 'contacts') await showContactsMenu();
   else if (action === 'messages') await showMessagesMenu();
+  else if (action === 'media') await showMediaMenu();
   else if (action === 'exit') {
     logger.info('Encerrando o bot...');
     await destroyClient();
@@ -40,23 +43,29 @@ async function showMainMenu() {
 async function showBulkSendWizard() {
   const templates = await loadTemplates();
 
-  if (templates.length === 0) {
-    logger.warn('Nenhum template cadastrado. Crie um template primeiro em "Gerenciar mensagens".');
-    return;
-  }
+  // Passo 1: selecionar template (ou criar um novo)
+  const choices = [
+    ...templates.map((t) => ({
+      name: `${t.name}${t.media ? chalk.magenta(' [com mídia]') : ''}`,
+      value: t.id,
+    })),
+    ...(templates.length > 0 ? [new inquirer.Separator()] : []),
+    { name: '➕  Criar novo template', value: '__new__' },
+  ];
 
-  // Passo 1: selecionar template
   const { templateId } = await inquirer.prompt([
     {
       type: 'list',
       name: 'templateId',
       message: 'Selecione o template de mensagem:',
-      choices: templates.map((t) => ({
-        name: `${t.name}${t.media ? chalk.magenta(' [com mídia]') : ''}`,
-        value: t.id,
-      })),
+      choices,
     },
   ]);
+
+  if (templateId === '__new__') {
+    await addTemplateFlow();
+    return showBulkSendWizard();
+  }
 
   // Passo 2: filtrar por grupo (opcional)
   const { group } = await inquirer.prompt([
