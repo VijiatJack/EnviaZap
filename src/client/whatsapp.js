@@ -18,8 +18,9 @@ function initializeClient() {
 
     client = new Client({
       authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
+      takeoverOnConflict: true,
       puppeteer: {
-        headless: false,
+        headless: true,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
