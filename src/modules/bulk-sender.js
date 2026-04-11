@@ -15,6 +15,23 @@ function toChatId(phone) {
   return `${phone}@c.us`;
 }
 
+/**
+ * Retorna o intervalo de delay (ms) adequado para o volume de contatos.
+ *
+ * | Contatos   | Min   | Max    | Risco  |
+ * |------------|-------|--------|--------|
+ * | < 30       | 1500  | 3000   | Baixo  |
+ * | 30 – 100   | 3000  | 8000   | Baixo  |
+ * | 101 – 300  | 5000  | 15000  | Médio  |
+ * | > 300      | 10000 | 20000  | Alto   |
+ */
+function getDelayRange(contactCount) {
+  if (contactCount < 30)  return { min: 1500,  max: 3000  };
+  if (contactCount <= 100) return { min: 3000,  max: 8000  };
+  if (contactCount <= 300) return { min: 5000,  max: 15000 };
+  return                          { min: 10000, max: 20000 };
+}
+
 async function sendSingleMessage(phone, message) {
   const client = getClient();
   try {
@@ -26,7 +43,7 @@ async function sendSingleMessage(phone, message) {
 }
 
 async function sendBulkMessages(templateId, options = {}) {
-  const { delayMin = 3000, delayMax = 8000, group } = options;
+  const { group } = options;
 
   const template = await getTemplateById(templateId);
   if (!template) {

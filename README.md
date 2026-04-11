@@ -9,7 +9,7 @@ Bot WhatsApp para envio de mensagens em massa com suporte a texto, imagens e ví
 - Variáveis dinâmicas nas mensagens: `{name}`, `{phone}`, `{group}`
 - Gerenciamento de contatos (adicionar, listar, desativar)
 - Gerenciamento de templates de mensagens com mídia
-- Delay aleatório entre envios para evitar bloqueios (3–8s)
+- Delay automático entre envios ajustado ao volume da lista (anti-ban)
 - Sessão persistente via QR Code (sem novo QR a cada reinício)
 
 ## Requisitos
@@ -71,6 +71,21 @@ A sessão é salva localmente. Execuções seguintes reconectam automaticamente.
 ## Variáveis nas mensagens
 
 Use `{name}`, `{phone}` e `{group}` no texto ou legenda da mídia. Elas são substituídas pelos dados de cada contato no momento do envio.
+
+## Delay entre envios (anti-ban)
+
+O bot ajusta automaticamente o intervalo de espera entre mensagens com base no número de destinatários da lista.
+
+| Contatos   | Delay automático | Risco estimado |
+|------------|------------------|----------------|
+| Menos de 30      | 2–5s             | Baixo          |
+| 30 a 100   | 3–8s             | Baixo          |
+| 101 a 300  | 5–15s            | Médio          |
+| Mais de 300      | 10–20s           | Alto           |
+
+O maior fator de risco não é apenas a velocidade, mas a combinação de volume + frequência de uso + histórico do número. Números novos têm risco maior de ban do que números já estabelecidos.
+
+> Nunca use o bot para enviar mensagens não solicitadas. Contatos que não conhecem o remetente podem marcar a mensagem como spam, aumentando o risco de banimento.
 
 ## Observações
 
