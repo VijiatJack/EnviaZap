@@ -1,0 +1,145 @@
+const inquirer = require('inquirer');
+const chalk = require('chalk');
+const ora = require('ora');
+const { sendBulkMessages } = require('../modules/bulk-sender');
+const { loadTemplates } = require('../modules/messages');
+const { getActiveContacts } = require('../modules/contacts');
+const { showContactsMenu } = require('./contacts-menu');
+const { showMessagesMenu } = require('./messages-menu');
+const { destroyClient } = require('../client/whatsapp');
+const logger = require('../utils/logger');
+
+async function showMainMenu() {
+  console.log('');
+  const { action } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'action',
+      message: 'Menu principal — o que deseja fazer?',
+      choices: [
+        { name: '📨  Enviar mensagem em massa', value: 'send' },
+        { name: '👥  Gerenciar contatos', value: 'contacts' },
+        { name: '📝  Gerenciar mensagens', value: 'messages' },
+        { name: '🚪  Sair', value: 'exit' },
+      ],
+    },
+  ]);
+
+  if (action === 'send') await showBulkSendWizard();
+  else if (action === 'contacts') await showContactsMenu();
+  else if (action === 'messages') await showMessagesMenu();
+  else if (action === 'exit') {
+    logger.info('Encerrando o bot...');
+    await destroyClient();
+    process.exit(0);
+  }
+
+  return showMainMenu();
+}
+
+async function showBulkSendWizard() {
+  const templates = await loadTemplates();
+
+  if (templates.length === 0) {
+    logger.warn('Nenhum template cadastrado. Crie um template primeiro em "Gerenciar mensagens".');
+    return;
+  }
+
+  // Passo 1: selecionar template
+  const { templateId } = await inquirer.prompt([
+    {
+      type: 'list',
+      name: 'templateId',
+      message: 'Selecione o template de mensagem:',
+      choices: templates.map((t) => ({
+        name: `${t.name}${t.media ? chalk.magenta(' [com mídia]') : ''}`,
+        value: t.id,
+      })),
+    },
+  ]);
+
+  // Passo 2: filtrar por grupo (opcional)
+  const { group } = await inquirer.prompt([
+    {
+      type: 'input',
+      name: 'group',
+      message: 'Filtrar por grupo/tag? (deixe vazio para enviar a todos):',
+    },
+  ]);
+
+  // Passo 3: confirmar quantidade
+  const contacts = await getActiveContacts(group || undefined);
+
+  if (contacts.length === 0) {
+    logger.warn(
+      group
+        ? `Nenhum contato ativo no grupo "${group}".`
+        : 'Nenhum contato ativo cadastrado.'
+    );
+    return;
+  }
+
+  const template = templates.find((t) => t.id === templateId);
+  console.log('');
+  console.log(chalk.bold('─── Resumo do envio ───────────────────────────'));
+  console.log(`  Template:      ${template.name}`);
+  if (template.media) {
+    console.log(`  Mídia:         [${template.media.type}] ${template.media.path}`);
+  }
+  console.log(`  Destinatários: ${chalk.cyan(contacts.length)} contatos`);
+  if (group) {
+    console.log(`  Grupo:         ${group}`);
+  }
+  console.log(chalk.bold('───────────────────────────────────────────────'));
+  console.log('');
+
+  // Passo 4: confirmar envio
+  const { confirm } = await inquirer.prompt([
+    {
+      type: 'confirm',
+      name: 'confirm',
+      message: `Confirmar envio para ${contacts.length} contatos?`,
+      default: false,
+    },
+  ]);
+
+  if (!confirm) {
+    logger.info('Envio cancelado.');
+    return;
+  }
+
+  // Passo 5: enviar
+  console.log('');
+  logger.info('Iniciando envio... (delay de 3–8s entre cada mensagem)');
+  console.log('');
+
+  let results;
+  try {
+    results = await sendBulkMessages(templateId, { group: group || undefined });
+  } catch (err) {
+    logger.error(`Erro ao iniciar envio: ${err.message}`);
+    return;
+  }
+
+  // Passo 6: relatório final
+  const sent = results.filter((r) => r.status === 'sent');
+  const failed = results.filter((r) => r.status === 'failed');
+
+  console.log('');
+  console.log(chalk.bold('─── Relatório Final ────────────────────────────'));
+  console.log(`  ${chalk.green('Enviados:')}  ${sent.length}`);
+  console.log(`  ${chalk.red('Falhos:')}    ${failed.length}`);
+
+  if (failed.length > 0) {
+    console.log('');
+    console.log(chalk.red('  Falhas:'));
+    for (const r of failed) {
+      console.log(chalk.red(`    • ${r.name} (${r.phone}): ${r.error}`));
+    }
+  }
+
+  console.log(chalk.bold('────────────────────────────────────────────────'));
+  console.log('');
+}
+
+module.exports = { showMainMenu, showBulkSendWizard };
