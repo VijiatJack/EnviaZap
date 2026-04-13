@@ -20,7 +20,7 @@ function initializeClient() {
       authStrategy: new LocalAuth({ dataPath: '.wwebjs_auth' }),
       takeoverOnConflict: true,
       puppeteer: {
-        headless: true,
+        headless: false,
         args: [
           '--no-sandbox',
           '--disable-setuid-sandbox',
@@ -49,7 +49,7 @@ function initializeClient() {
     });
 
     client.on('authenticated', () => {
-      logger.info('Autenticação realizada. Aguardando conexão...');
+      logger.info('Autenticação realizada. Carregando conversas...');
     });
 
     client.on('auth_failure', (msg) => {
