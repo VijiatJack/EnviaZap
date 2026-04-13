@@ -202,4 +202,4 @@ async function sendBulkToGroups(templateId, groups) {
   return results;
 }
 
-module.exports = { sendBulkMessages, sendBulkToGroups, sendSingleMessage, randomDelay };
+module.exports = { sendBulkMessages, sendBulkToGroups, sendSingleMessage, sendTemplateMessage, randomDelay, toChatId, getDelayRange };
