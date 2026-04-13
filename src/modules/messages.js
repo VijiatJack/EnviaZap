@@ -81,14 +81,28 @@ async function deleteTemplate(id) {
 
 /**
  * Substitui variáveis {name}, {phone}, {group} pelo valor do contato.
+ * Quando contact.name === null (contexto de grupo):
+ *   - {name} no início de parágrafo (início do texto ou após \n) → "Grupo"
+ *   - {name} em qualquer outra posição → "grupo"
  * Função pura — sem I/O.
  */
 function interpolate(text, contact) {
   if (!text) return '';
-  return text
-    .replace(/\{name\}/g, contact.name || '')
+
+  let result = text
     .replace(/\{phone\}/g, contact.phone || '')
     .replace(/\{group\}/g, contact.group || '');
+
+  if (contact.name === null) {
+    // Início de parágrafo: início do texto ou logo após \n (com espaços/tabs opcionais)
+    result = result.replace(/((?:^|\n)[^\S\n]*)\{name\}/g, (_, prefix) => prefix + 'Grupo');
+    // Demais ocorrências
+    result = result.replace(/\{name\}/g, 'grupo');
+  } else {
+    result = result.replace(/\{name\}/g, contact.name || contact.phone || '');
+  }
+
+  return result;
 }
 
 module.exports = { loadTemplates, saveTemplates, addTemplate, getTemplateById, deleteTemplate, interpolate };
